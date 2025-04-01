@@ -1,0 +1,23 @@
+{
+  "country": "India",
+  "state": "Maharashtra",
+  "district": "Mumbai",
+  "soil_type": "Alluvial",
+  "climate_condition": "Tropical",
+  "crop_name": "Wheat",
+  "year": 2025,
+  "land_preparation_start": "2024-10-15",
+  "land_preparation_end": "2024-11-15",
+  "sowing_start": "2024-11-15",
+  "sowing_end": "2024-12-05",
+  "irrigation_start": "2024-12-20",
+  "irrigation_end": "2025-03-15",
+  "fertilization_1": "2024-12-25",
+  "fertilization_2": "2025-01-20",
+  "weeding_1": "2025-01-05",
+  "weeding_2": "2025-02-05",
+  "pest_control_1": "2025-01-15",
+  "pest_control_2": "2025-02-15",
+  "harvesting_start": "2025-03-15",
+  "harvesting_end": "2025-04-15"
+}
