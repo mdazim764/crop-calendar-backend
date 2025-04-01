@@ -251,7 +251,6 @@ Generate a complete crop schedule in JSON format with the following keys:
 
 All dates must be in ISO format (YYYY-MM-DD). Any task that is not applicable should be set to "NA".
 
-Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.” Dates must be in YYYY-MM-DD.
 
 Example output:
 {
@@ -276,7 +275,10 @@ Example output:
   "pest_control_2": "2027-09-15",
   "harvesting_start": "2027-11-01",
   "harvesting_end": "2027-12-31"
-}`;
+}
+  Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.” Dates must be in YYYY-MM-DD.
+  Example output: {\n  "country": "India",\n  "region": "Maharashtra",\n  "district": "Solapur",\n  "soil_type": "Black",\n  "climate_condition": "Hot and Dry",\n  "crop_name": "Jowar",\n  "year": 2025,\n  "land_preparation_start": "2025-05-01",\n  "land_preparation_end": "2025-05-31",\n  "sowing_start": "2025-06-15",\n  "sowing_end": "2025-07-15",\n  "planting_start": "NA",\n  "planting_end": "NA",\n  "fertilization_1": "2025-07-30",\n  "fertilization_2": "2025-08-30",\n  "irrigation_1": "2025-07-20",\n  "irrigation_2": "2025-08-20",\n  "weeding_1": "2025-07-10",\n  "weeding_2": "2025-08-10",\n  "pest_control_1": "2025-08-01",\n  "pest_control_2": "2025-09-01",\n  "harvesting_start": "2025-11-01",\n  "harvesting_end": "2025-11-30"\n}
+`;
 
     console.log("Gemini schedule prompt:\n", schedulePrompt);
 
