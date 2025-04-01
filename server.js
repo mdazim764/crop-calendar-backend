@@ -207,6 +207,11 @@ async function getWeatherData(location, date) {
   }
 }
 
+//test server
+app.get("/", (req, res) => {
+  res.send("Server is running!");
+});
+
 // --- Endpoint: Generate Crop Schedule ---
 app.post("/generate-schedule", async (req, res) => {
   try {
