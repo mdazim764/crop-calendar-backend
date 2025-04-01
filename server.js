@@ -251,6 +251,8 @@ Generate a complete crop schedule in JSON format with the following keys:
 
 All dates must be in ISO format (YYYY-MM-DD). Any task that is not applicable should be set to "NA".
 
+Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.” Dates must be in YYYY-MM-DD.
+
 Example output:
 {
   "country": "India",
