@@ -154,7 +154,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
-const fetch = require("node-fetch"); // Ensure you install: npm install node-fetch
+const fetch = require("node-fetch"); // Ensure you have installed node-fetch: npm install node-fetch
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
@@ -180,7 +180,7 @@ const generationConfig = {
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY; // Your WeatherAPI key
 const WEATHER_API_BASE = "http://api.weatherapi.com/v1";
 
-// Utility: fetch weather data for a given location and date.
+// Utility: Fetch weather data for a given location and date.
 async function getWeatherData(location, date) {
   try {
     const url = `${WEATHER_API_BASE}/forecast.json?key=${WEATHER_API_KEY}&q=${encodeURIComponent(
@@ -207,11 +207,6 @@ async function getWeatherData(location, date) {
   }
 }
 
-//test server
-app.get("/", (req, res) => {
-  res.send("Server is running!");
-});
-
 // --- Endpoint: Generate Crop Schedule ---
 app.post("/generate-schedule", async (req, res) => {
   try {
@@ -228,12 +223,11 @@ app.post("/generate-schedule", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Build a main prompt template (you can adjust this text as needed).
-    const mainPrompt = `You are an expert agricultural advisor for Indian agriculture. 
+    const schedulePrompt = `You are an expert agricultural advisor for Indian agriculture. 
 Given the following parameters:
 Country: ${country}
 State: ${region}
-District/City: ${area}
+District: ${area}
 Soil Type: ${soil}
 Climate Condition: ${climate}
 Crop Name: ${cropName}
@@ -256,6 +250,7 @@ Generate a complete crop schedule in JSON format with the following keys:
 - harvesting_end
 
 All dates must be in ISO format (YYYY-MM-DD). Any task that is not applicable should be set to "NA".
+
 Example output:
 {
   "country": "India",
@@ -281,11 +276,10 @@ Example output:
   "harvesting_end": "2027-12-31"
 }`;
 
-    console.log("Gemini schedule prompt:\n", mainPrompt);
+    console.log("Gemini schedule prompt:\n", schedulePrompt);
 
-    // Call Gemini with the main prompt.
     const geminiResponse = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: mainPrompt }] }],
+      contents: [{ role: "user", parts: [{ text: schedulePrompt }] }],
       generationConfig,
     });
 
@@ -298,12 +292,8 @@ Example output:
       return res.status(500).json({ error: "Invalid AI response format" });
     }
 
-    // Save scheduleData to file (optional)
-    const dataDir = path.join(__dirname, "src", "data");
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    const filePath = path.join(dataDir, "response.json");
+    // Save scheduleData to /tmp directory (ephemeral storage)
+    const filePath = path.join("/tmp", "response.json");
     fs.writeFileSync(filePath, JSON.stringify(scheduleData, null, 2), "utf-8");
     console.log(`Saved AI schedule to: ${filePath}`);
 
@@ -324,7 +314,7 @@ app.post("/generate-weather-tips", async (req, res) => {
         .json({ error: "Missing required fields: schedule and weatherInfo" });
     }
 
-    // Build a simple task summary from the schedule.
+    // Build a task summary string from the schedule by excluding non-task keys.
     let taskSummary = "";
     for (const key in schedule) {
       if (
@@ -356,32 +346,11 @@ Return your response in JSON format with a key "tips" containing an array of obj
 
 If a task does not require any adjustment based on the weather, reply with "No adjustment needed" for that task.
 
-For example, if the crop schedule is:
-{
-  "land_preparation_start": "2027-05-01",
-  "land_preparation_end": "2027-06-15",
-  "sowing_start": "2027-06-15",
-  "sowing_end": "2027-07-31",
-  "irrigation_start": "2027-07-01",
-  "irrigation_end": "2027-11-30",
-  "harvesting_start": "2027-11-01",
-  "harvesting_end": "2027-12-31"
-}
-
-And the weather info is:
-"Weather on 2027-05-01: Partly cloudy, Avg Temp: 28°C, Chance of rain: 10%."
-
-A sample response could be:
+Example output:
 {
   "tips": [
-    {"task": "land_preparation_start", "tip": "Ensure the soil is adequately moist given the partly cloudy conditions."},
-    {"task": "land_preparation_end", "tip": "No adjustment needed"},
-    {"task": "sowing_start", "tip": "Consider delaying sowing slightly if rain is expected."},
-    {"task": "sowing_end", "tip": "No adjustment needed"},
-    {"task": "irrigation_start", "tip": "Monitor soil moisture closely due to the slight chance of rain."},
-    {"task": "irrigation_end", "tip": "No adjustment needed"},
-    {"task": "harvesting_start", "tip": "Prepare for early harvesting if dry conditions persist."},
-    {"task": "harvesting_end", "tip": "No adjustment needed"}
+    { "task": "sowing_start", "tip": "Delay sowing slightly if rain is expected." },
+    { "task": "irrigation_start", "tip": "Increase irrigation frequency due to high temperatures." }
   ]
 }`;
 
