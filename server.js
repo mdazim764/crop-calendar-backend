@@ -154,7 +154,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
-const fetch = require("node-fetch"); // Ensure you installed node-fetch: npm install node-fetch
+const fetch = require("node-fetch"); // Ensure you have installed node-fetch: npm install node-fetch
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
@@ -207,7 +207,7 @@ async function getWeatherData(location, date) {
   }
 }
 
-// --- Endpoint: Generate Crop Schedule & Tips ---
+// --- Endpoint: Generate Crop Schedule ---
 app.post("/generate-schedule", async (req, res) => {
   try {
     const { country, region, area, soil, climate, cropName, year } = req.body;
@@ -297,6 +297,7 @@ Example output:
 }`;
 
     console.log("Gemini schedule prompt:\n", schedulePrompt);
+
     const geminiResponse = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: schedulePrompt }] }],
       generationConfig,
@@ -311,17 +312,31 @@ Example output:
       return res.status(500).json({ error: "Invalid AI response format" });
     }
 
-    // --- Part 2: Generate Weather Tips ---
-    // Get weather data for the target date – for simplicity, using January 1 of the target year.
-    const targetDate = `${year}-01-01`;
-    const weatherData = await getWeatherData(area, targetDate);
-    const weatherSummary = weatherData
-      ? `Weather on ${weatherData.date}: ${weatherData.day.condition.text}, Avg Temp: ${weatherData.day.avgtemp_c}°C, Chance of rain: ${weatherData.day.daily_chance_of_rain}%.`
-      : "Weather data not available.";
+    // Save scheduleData to /tmp directory (ephemeral storage)
+    const filePath = path.join("/tmp", "response.json");
+    fs.writeFileSync(filePath, JSON.stringify(scheduleData, null, 2), "utf-8");
+    console.log(`Saved AI schedule to: ${filePath}`);
 
-    // Build a task summary string from the schedule (excluding non-task keys)
+    res.json(scheduleData);
+  } catch (error) {
+    console.error("Error generating schedule:", error);
+    res.status(500).json({ error: "Failed to generate schedule" });
+  }
+});
+
+// --- Endpoint: Generate Weather Tips ---
+app.post("/generate-weather-tips", async (req, res) => {
+  try {
+    const { schedule, weatherInfo } = req.body;
+    if (!schedule || !weatherInfo) {
+      return res
+        .status(400)
+        .json({ error: "Missing required fields: schedule and weatherInfo" });
+    }
+
+    // Build a task summary string from the schedule by excluding non-task keys.
     let taskSummary = "";
-    for (const key in scheduleData) {
+    for (const key in schedule) {
       if (
         [
           "country",
@@ -331,11 +346,10 @@ Example output:
           "climate_condition",
           "crop_name",
           "year",
-          "overall_note",
         ].includes(key)
       )
         continue;
-      taskSummary += `${key}: ${scheduleData[key]}\n`;
+      taskSummary += `${key}: ${schedule[key]}\n`;
     }
 
     const tipsPrompt = `You are an expert agricultural advisor. Given the following crop schedule and weather information, provide actionable weather-based tips for each task.
@@ -344,7 +358,7 @@ Crop Schedule:
 ${taskSummary}
 
 Weather Info:
-${weatherSummary}
+${weatherInfo}
 
 Return your response in JSON format with a key "tips" containing an array of objects. Each object should have two keys:
 - "task": The task name.
@@ -352,18 +366,7 @@ Return your response in JSON format with a key "tips" containing an array of obj
 
 If a task does not require any adjustment based on the weather, reply with "No adjustment needed" for that task.
 
-For example, if the crop schedule is:
-{
-  "sowing_start": "2027-06-15",
-  "sowing_end": "2027-07-31",
-  "irrigation_start": "2027-07-01",
-  "irrigation_end": "2027-11-30"
-}
-
-And the weather info is:
-"Weather on 2027-05-01: Partly cloudy, Avg Temp: 28°C, Chance of rain: 10%."
-
-A sample response could be:
+Example output:
 {
   "tips": [
     { "task": "sowing_start", "tip": "Delay sowing slightly if rain is expected." },
@@ -385,21 +388,10 @@ A sample response could be:
       return res.status(500).json({ error: "Invalid AI tips response format" });
     }
 
-    // --- Part 3: Combine Results ---
-    const finalResponse = {
-      schedule: scheduleData,
-      weatherTips: tipsData.tips || tipsData, // adapt if Gemini returns tips as a direct array
-    };
-
-    // Save finalResponse to an ephemeral directory (e.g., /tmp)
-    const filePath = path.join("/tmp", "response.json");
-    fs.writeFileSync(filePath, JSON.stringify(finalResponse, null, 2), "utf-8");
-    console.log(`Saved final AI response (schedule + tips) to: ${filePath}`);
-
-    res.json(finalResponse);
+    res.json(tipsData);
   } catch (error) {
-    console.error("Error generating schedule and tips:", error);
-    res.status(500).json({ error: "Failed to generate schedule" });
+    console.error("Error generating weather tips:", error);
+    res.status(500).json({ error: "Failed to generate weather tips" });
   }
 });
 
