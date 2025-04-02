@@ -154,7 +154,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
-const fetch = require("node-fetch"); // Ensure you have installed node-fetch: npm install node-fetch
+const fetch = require("node-fetch"); // Ensure you installed node-fetch: npm install node-fetch
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
@@ -207,7 +207,7 @@ async function getWeatherData(location, date) {
   }
 }
 
-// --- Endpoint: Generate Crop Schedule ---
+// --- Endpoint: Generate Crop Schedule & Tips ---
 app.post("/generate-schedule", async (req, res) => {
   try {
     const { country, region, area, soil, climate, cropName, year } = req.body;
@@ -223,15 +223,16 @@ app.post("/generate-schedule", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // --- Part 1: Generate Crop Schedule ---
     const schedulePrompt = `You are an expert agricultural advisor for Indian agriculture. 
 Given the following parameters:
-Country: ${country}
-State: ${region}
-District: ${area}
-Soil Type: ${soil}
-Climate Condition: ${climate}
-Crop Name: ${cropName}
-Target Year: ${year}
+- Country: ${country}
+- State: ${region}
+- District/City: ${area}
+- Soil Type: ${soil}
+- Climate Condition: ${climate}
+- Crop Name: ${cropName}
+- Target Year: ${year}
 
 Generate a complete crop schedule in JSON format with the following keys:
 - land_preparation_start
@@ -249,8 +250,11 @@ Generate a complete crop schedule in JSON format with the following keys:
 - harvesting_start
 - harvesting_end
 
-All dates must be in ISO format (YYYY-MM-DD). Any task that is not applicable should be set to "NA".
+For each task, also provide a corresponding key prefixed with "tips_" (for example, "tips_sowing_start") containing a one-sentence actionable tip based on general weather conditions. Finally, include an overall key "overall_note" that briefly explains whether the crop is suitable for the given conditions.
 
+All dates must be in ISO format (YYYY-MM-DD). For any task that is not applicable, return "NA".
+
+Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.” Dates must be in YYYY-MM-DD.
 
 Example output:
 {
@@ -262,48 +266,37 @@ Example output:
   "crop_name": "Cotton",
   "year": 2027,
   "land_preparation_start": "2027-05-01",
+  "tips_land_preparation_start": "Ensure the soil is adequately moist before starting.",
   "land_preparation_end": "2027-06-15",
+  "tips_land_preparation_end": "No adjustment needed.",
   "sowing_start": "2027-06-15",
+  "tips_sowing_start": "Delay sowing if heavy rains are forecast.",
   "sowing_end": "2027-07-31",
+  "tips_sowing_end": "Monitor for pest emergence after sowing.",
   "irrigation_start": "2027-07-01",
+  "tips_irrigation_start": "Increase irrigation if temperatures are high.",
   "irrigation_end": "2027-11-30",
+  "tips_irrigation_end": "Reduce irrigation frequency as harvest nears.",
   "fertilization_1": "2027-07-15",
+  "tips_fertilization_1": "Apply fertilizer after the first weeding.",
   "fertilization_2": "2027-08-30",
+  "tips_fertilization_2": "Use organic fertilizer for sustained growth.",
   "weeding_1": "2027-07-01",
+  "tips_weeding_1": "Perform weeding early to reduce competition with crops.",
   "weeding_2": "2027-08-15",
+  "tips_weeding_2": "Monitor for invasive species and act accordingly.",
   "pest_control_1": "2027-08-01",
+  "tips_pest_control_1": "Implement integrated pest management strategies.",
   "pest_control_2": "2027-09-15",
+  "tips_pest_control_2": "Inspect regularly and adjust treatments as necessary.",
   "harvesting_start": "2027-11-01",
-  "harvesting_end": "2027-12-31"
-}
-  Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.” Dates must be in YYYY-MM-DD.
-  Example output: {
-    "country": "India",
-    "state": "Maharashtra",
-    "district": "Mumbai",
-    "soil_type": "Alluvial",
-    "climate_condition": "Tropical",
-    "crop_name": "Wheat",
-    "year": 2027,
-    "land_preparation_start": "2027-10-15",
-    "land_preparation_end": "2027-11-15",
-    "sowing_start": "2027-11-15",
-    "sowing_end": "2027-12-05",
-    "irrigation_start": "2027-12-20",
-    "irrigation_end": "2028-03-15",
-    "fertilization_1": "2027-12-25",
-    "fertilization_2": "2028-01-20",
-    "weeding_1": "2027-12-15",
-    "weeding_2": "2028-01-30",
-    "pest_control_1": "2028-01-15",
-    "pest_control_2": "2028-02-15",
-    "harvesting_start": "2028-03-15",
-    "harvesting_end": "2028-04-15"
-}
-`;
+  "tips_harvesting_start": "Harvest early in the morning for best quality.",
+  "harvesting_end": "2027-12-31",
+  "tips_harvesting_end": "Store harvested crops in a cool, dry place.",
+  "overall_note": "Based on the provided conditions, the crop appears suitable with minor adjustments."
+}`;
 
     console.log("Gemini schedule prompt:\n", schedulePrompt);
-
     const geminiResponse = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: schedulePrompt }] }],
       generationConfig,
@@ -318,31 +311,17 @@ Example output:
       return res.status(500).json({ error: "Invalid AI response format" });
     }
 
-    // Save scheduleData to /tmp directory (ephemeral storage)
-    const filePath = path.join("/tmp", "response.json");
-    fs.writeFileSync(filePath, JSON.stringify(scheduleData, null, 2), "utf-8");
-    console.log(`Saved AI schedule to: ${filePath}`);
+    // --- Part 2: Generate Weather Tips ---
+    // Get weather data for the target date – for simplicity, using January 1 of the target year.
+    const targetDate = `${year}-01-01`;
+    const weatherData = await getWeatherData(area, targetDate);
+    const weatherSummary = weatherData
+      ? `Weather on ${weatherData.date}: ${weatherData.day.condition.text}, Avg Temp: ${weatherData.day.avgtemp_c}°C, Chance of rain: ${weatherData.day.daily_chance_of_rain}%.`
+      : "Weather data not available.";
 
-    res.json(scheduleData);
-  } catch (error) {
-    console.error("Error generating schedule:", error);
-    res.status(500).json({ error: "Failed to generate schedule" });
-  }
-});
-
-// --- Endpoint: Generate Weather Tips ---
-app.post("/generate-weather-tips", async (req, res) => {
-  try {
-    const { schedule, weatherInfo } = req.body;
-    if (!schedule || !weatherInfo) {
-      return res
-        .status(400)
-        .json({ error: "Missing required fields: schedule and weatherInfo" });
-    }
-
-    // Build a task summary string from the schedule by excluding non-task keys.
+    // Build a task summary string from the schedule (excluding non-task keys)
     let taskSummary = "";
-    for (const key in schedule) {
+    for (const key in scheduleData) {
       if (
         [
           "country",
@@ -352,10 +331,11 @@ app.post("/generate-weather-tips", async (req, res) => {
           "climate_condition",
           "crop_name",
           "year",
+          "overall_note",
         ].includes(key)
       )
         continue;
-      taskSummary += `${key}: ${schedule[key]}\n`;
+      taskSummary += `${key}: ${scheduleData[key]}\n`;
     }
 
     const tipsPrompt = `You are an expert agricultural advisor. Given the following crop schedule and weather information, provide actionable weather-based tips for each task.
@@ -364,7 +344,7 @@ Crop Schedule:
 ${taskSummary}
 
 Weather Info:
-${weatherInfo}
+${weatherSummary}
 
 Return your response in JSON format with a key "tips" containing an array of objects. Each object should have two keys:
 - "task": The task name.
@@ -372,7 +352,18 @@ Return your response in JSON format with a key "tips" containing an array of obj
 
 If a task does not require any adjustment based on the weather, reply with "No adjustment needed" for that task.
 
-Example output:
+For example, if the crop schedule is:
+{
+  "sowing_start": "2027-06-15",
+  "sowing_end": "2027-07-31",
+  "irrigation_start": "2027-07-01",
+  "irrigation_end": "2027-11-30"
+}
+
+And the weather info is:
+"Weather on 2027-05-01: Partly cloudy, Avg Temp: 28°C, Chance of rain: 10%."
+
+A sample response could be:
 {
   "tips": [
     { "task": "sowing_start", "tip": "Delay sowing slightly if rain is expected." },
@@ -394,10 +385,21 @@ Example output:
       return res.status(500).json({ error: "Invalid AI tips response format" });
     }
 
-    res.json(tipsData);
+    // --- Part 3: Combine Results ---
+    const finalResponse = {
+      schedule: scheduleData,
+      weatherTips: tipsData.tips || tipsData, // adapt if Gemini returns tips as a direct array
+    };
+
+    // Save finalResponse to an ephemeral directory (e.g., /tmp)
+    const filePath = path.join("/tmp", "response.json");
+    fs.writeFileSync(filePath, JSON.stringify(finalResponse, null, 2), "utf-8");
+    console.log(`Saved final AI response (schedule + tips) to: ${filePath}`);
+
+    res.json(finalResponse);
   } catch (error) {
-    console.error("Error generating weather tips:", error);
-    res.status(500).json({ error: "Failed to generate weather tips" });
+    console.error("Error generating schedule and tips:", error);
+    res.status(500).json({ error: "Failed to generate schedule" });
   }
 });
 
