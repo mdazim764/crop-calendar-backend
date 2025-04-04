@@ -180,6 +180,35 @@ const generationConfig = {
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY; // Your WeatherAPI key
 const WEATHER_API_BASE = "http://api.weatherapi.com/v1";
 
+// --- Location Defaults Mapping ---
+// This object maps country/state/city combinations to common soil and climate data.
+// Extend this mapping as needed.
+const locationDefaults = {
+  India: {
+    Rajasthan: {
+      Jaipur: { soil: "Red Soil", climate: "Arid" },
+      Jodhpur: { soil: "Sandy Soil", climate: "Semi-Arid" },
+    },
+    "West Bengal": {
+      Kolkata: { soil: "Alluvial", climate: "Tropical" },
+    },
+    // Add more states and cities as required
+  },
+  // Add more countries if needed
+};
+
+// Utility: Determine soil and climate based on location mapping.
+function getLocationDefaults(country, state, city) {
+  if (
+    locationDefaults[country] &&
+    locationDefaults[country][state] &&
+    locationDefaults[country][state][city]
+  ) {
+    return locationDefaults[country][state][city];
+  }
+  return { soil: "Unknown Soil", climate: "Unknown Climate" };
+}
+
 // Utility: Fetch weather data for a given location and date.
 async function getWeatherData(location, date) {
   try {
@@ -208,22 +237,20 @@ async function getWeatherData(location, date) {
 }
 
 // --- Endpoint: Generate Crop Schedule ---
+// In this update, we remove soil and climate from the required user input.
+// The server determines these values based on location.
 app.post("/generate-schedule", async (req, res) => {
   try {
-    const { country, region, area, soil, climate, cropName, year } = req.body;
-    if (
-      !country ||
-      !region ||
-      !area ||
-      !soil ||
-      !climate ||
-      !cropName ||
-      !year
-    ) {
+    // Extract required fields; soil and climate are optional.
+    const { country, region, area, cropName, year } = req.body;
+    if (!country || !region || !area || !cropName || !year) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // --- Part 1: Generate Crop Schedule ---
+    // Get soil and climate defaults based on location.
+    const { soil, climate } = getLocationDefaults(country, region, area);
+
+    // Construct the Gemini prompt using the provided parameters plus the derived soil/climate.
     const schedulePrompt = `You are an expert agricultural advisor for Indian agriculture. 
 Given the following parameters:
 - Country: ${country}
@@ -325,6 +352,7 @@ Example output:
 });
 
 // --- Endpoint: Generate Weather Tips ---
+// (This endpoint remains unchanged as it’s not used in the current update.)
 app.post("/generate-weather-tips", async (req, res) => {
   try {
     const { schedule, weatherInfo } = req.body;
@@ -334,7 +362,6 @@ app.post("/generate-weather-tips", async (req, res) => {
         .json({ error: "Missing required fields: schedule and weatherInfo" });
     }
 
-    // Build a task summary string from the schedule by excluding non-task keys.
     let taskSummary = "";
     for (const key in schedule) {
       if (
