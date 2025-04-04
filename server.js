@@ -287,11 +287,15 @@ Generate a complete crop schedule in JSON format with the following keys:
 - harvesting_start
 - harvesting_end
 
-For each task, also provide a corresponding key prefixed with "tips_" (e.g., "tips_sowing_start") containing a one-sentence actionable tip based on general weather conditions. Finally, include an overall key "overall_note" that briefly explains whether the crop is suitable for the given conditions.
+For each task, also provide two additional keys:
+- "description_<task>": A brief description of what the task involves.
+- "tips_<task>": A one-sentence actionable tip based on general weather conditions.
 
-All dates must be in ISO format (YYYY-MM-DD). For any task that is not applicable, return "NA".
+Finally, include an overall key "overall_note" that briefly explains whether the crop is suitable for the given conditions.
 
-Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.”
+All dates must be in ISO format (YYYY-MM-DD). For any task that is not applicable, return "NA."
+
+Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields for tasks (land_preparation, sowing, irrigation, fertilization, etc.). For any task that is not relevant, return "NA."
 
 Example output:
 {
@@ -303,32 +307,46 @@ Example output:
   "crop_name": "Cotton",
   "year": 2027,
   "land_preparation_start": "2027-05-01",
+  "description_land_preparation_start": "Begin clearing and preparing the land for plowing.",
   "tips_land_preparation_start": "Ensure the soil is adequately moist before starting.",
   "land_preparation_end": "2027-06-15",
+  "description_land_preparation_end": "Finish leveling and final land preparation.",
   "tips_land_preparation_end": "No adjustment needed.",
   "sowing_start": "2027-06-15",
+  "description_sowing_start": "Start sowing the cotton seeds at proper depth.",
   "tips_sowing_start": "Delay sowing if heavy rains are forecast.",
   "sowing_end": "2027-07-31",
+  "description_sowing_end": "Complete the sowing process ensuring even seed distribution.",
   "tips_sowing_end": "Monitor for pest emergence after sowing.",
   "irrigation_start": "2027-07-01",
+  "description_irrigation_start": "Begin scheduled irrigation to support seed germination.",
   "tips_irrigation_start": "Increase irrigation if temperatures are high.",
   "irrigation_end": "2027-11-30",
+  "description_irrigation_end": "End regular irrigation as the crop nears maturity.",
   "tips_irrigation_end": "Reduce irrigation frequency as harvest nears.",
   "fertilization_1": "2027-07-15",
+  "description_fertilization_1": "Apply the first round of fertilizers to boost early growth.",
   "tips_fertilization_1": "Apply fertilizer after the first weeding.",
   "fertilization_2": "2027-08-30",
+  "description_fertilization_2": "Apply a second dose to sustain growth.",
   "tips_fertilization_2": "Use organic fertilizer for sustained growth.",
   "weeding_1": "2027-07-01",
+  "description_weeding_1": "Perform initial weeding to remove competing plants.",
   "tips_weeding_1": "Perform weeding early to reduce competition with crops.",
   "weeding_2": "2027-08-15",
+  "description_weeding_2": "Carry out a second round of weeding for optimal growth.",
   "tips_weeding_2": "Monitor for invasive species and act accordingly.",
   "pest_control_1": "2027-08-01",
+  "description_pest_control_1": "Begin pest control measures to protect young plants.",
   "tips_pest_control_1": "Implement integrated pest management strategies.",
   "pest_control_2": "2027-09-15",
+  "description_pest_control_2": "Follow up with a second pest control application if needed.",
   "tips_pest_control_2": "Inspect regularly and adjust treatments as necessary.",
   "harvesting_start": "2027-11-01",
+  "description_harvesting_start": "Initiate harvesting once crops are mature.",
   "tips_harvesting_start": "Harvest early in the morning for best quality.",
   "harvesting_end": "2027-12-31",
+  "description_harvesting_end": "Complete the harvesting process and secure the produce.",
   "tips_harvesting_end": "Store harvested crops in a cool, dry place.",
   "overall_note": "Based on the provided conditions, the crop appears suitable with minor adjustments."
 }`;
