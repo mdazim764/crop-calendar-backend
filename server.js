@@ -154,7 +154,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const cors = require("cors");
-const fetch = require("node-fetch"); // Ensure you have installed node-fetch: npm install node-fetch
+const fetch = require("node-fetch"); // Ensure you have installed: npm install node-fetch
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
@@ -180,33 +180,39 @@ const generationConfig = {
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY; // Your WeatherAPI key
 const WEATHER_API_BASE = "http://api.weatherapi.com/v1";
 
-// --- Location Defaults Mapping ---
-// This object maps country/state/city combinations to common soil and climate data.
-// Extend this mapping as needed.
-const locationDefaults = {
-  India: {
-    Rajasthan: {
-      Jaipur: { soil: "Red Soil", climate: "Arid" },
-      Jodhpur: { soil: "Sandy Soil", climate: "Semi-Arid" },
-    },
-    "West Bengal": {
-      Kolkata: { soil: "Alluvial", climate: "Tropical" },
-    },
-    // Add more states and cities as required
-  },
-  // Add more countries if needed
-};
+// Helper: Generate location defaults using Gemini
+async function generateLocationDefaults(country, state, city) {
+  const locationPrompt = `You are an expert in Indian agriculture and geographical conditions. Given the following location details:
+- Country: ${country}
+- State: ${state}
+- District/City: ${city}
 
-// Utility: Determine soil and climate based on location mapping.
-function getLocationDefaults(country, state, city) {
-  if (
-    locationDefaults[country] &&
-    locationDefaults[country][state] &&
-    locationDefaults[country][state][city]
-  ) {
-    return locationDefaults[country][state][city];
+Provide the most common soil type and climate condition for this area, formatted as JSON:
+{
+  "soil": "SoilType",
+  "climate": "ClimateCondition"
+}
+
+Ensure that the values are descriptive (for example, "Alluvial", "Tropical", "Red", "Semi-Arid", etc.).`;
+  console.log("Location defaults prompt:\n", locationPrompt);
+  try {
+    const response = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: locationPrompt }] }],
+      generationConfig,
+    });
+    const resultText = response.response.text();
+    let locationData;
+    try {
+      locationData = JSON.parse(resultText);
+    } catch (parseError) {
+      console.error("Failed to parse location defaults response:", parseError);
+      locationData = { soil: "Unknown Soil", climate: "Unknown Climate" };
+    }
+    return locationData;
+  } catch (error) {
+    console.error("Error generating location defaults:", error);
+    return { soil: "Unknown Soil", climate: "Unknown Climate" };
   }
-  return { soil: "Unknown Soil", climate: "Unknown Climate" };
 }
 
 // Utility: Fetch weather data for a given location and date.
@@ -237,20 +243,24 @@ async function getWeatherData(location, date) {
 }
 
 // --- Endpoint: Generate Crop Schedule ---
-// In this update, we remove soil and climate from the required user input.
-// The server determines these values based on location.
 app.post("/generate-schedule", async (req, res) => {
   try {
-    // Extract required fields; soil and climate are optional.
     const { country, region, area, cropName, year } = req.body;
     if (!country || !region || !area || !cropName || !year) {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
-    // Get soil and climate defaults based on location.
-    const { soil, climate } = getLocationDefaults(country, region, area);
+    // Get soil and climate defaults automatically from Gemini.
+    const { soil, climate } = await generateLocationDefaults(
+      country,
+      region,
+      area
+    );
+    console.log(
+      `For location ${area}, ${region}, ${country} -> Soil: ${soil}, Climate: ${climate}`
+    );
 
-    // Construct the Gemini prompt using the provided parameters plus the derived soil/climate.
+    // --- Build Gemini Schedule Prompt ---
     const schedulePrompt = `You are an expert agricultural advisor for Indian agriculture. 
 Given the following parameters:
 - Country: ${country}
@@ -277,11 +287,11 @@ Generate a complete crop schedule in JSON format with the following keys:
 - harvesting_start
 - harvesting_end
 
-For each task, also provide a corresponding key prefixed with "tips_" (for example, "tips_sowing_start") containing a one-sentence actionable tip based on general weather conditions. Finally, include an overall key "overall_note" that briefly explains whether the crop is suitable for the given conditions.
+For each task, also provide a corresponding key prefixed with "tips_" (e.g., "tips_sowing_start") containing a one-sentence actionable tip based on general weather conditions. Finally, include an overall key "overall_note" that briefly explains whether the crop is suitable for the given conditions.
 
 All dates must be in ISO format (YYYY-MM-DD). For any task that is not applicable, return "NA".
 
-Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.” Dates must be in YYYY-MM-DD.
+Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields (land_preparation, sowing, irrigation, fertilization, etc.). For anything irrelevant, write “NA.”
 
 Example output:
 {
@@ -339,7 +349,7 @@ Example output:
       return res.status(500).json({ error: "Invalid AI response format" });
     }
 
-    // Save scheduleData to /tmp directory (ephemeral storage)
+    // Optionally, save scheduleData to /tmp for debugging.
     const filePath = path.join("/tmp", "response.json");
     fs.writeFileSync(filePath, JSON.stringify(scheduleData, null, 2), "utf-8");
     console.log(`Saved AI schedule to: ${filePath}`);
