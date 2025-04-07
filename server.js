@@ -438,6 +438,7 @@ Example output:
     let tipsData;
     try {
       tipsData = JSON.parse(tipsResultText);
+      console.log("Parsed tips data:", tipsData);
     } catch (parseErr) {
       console.error("Failed to parse AI tips response:", parseErr);
       return res.status(500).json({ error: "Invalid AI tips response format" });
@@ -449,6 +450,112 @@ Example output:
     res.status(500).json({ error: "Failed to generate weather tips" });
   }
 });
+
+// --- Endpoint: Generate Weather Impacts ---
+app.post("/generate-weather-impacts", async (req, res) => {
+  try {
+    const { currentWeather, upcomingTasksSummary } = req.body;
+
+    if (!currentWeather || !upcomingTasksSummary) {
+      return res
+        .status(400)
+        .json({
+          error:
+            "Missing required fields: currentWeather and upcomingTasksSummary",
+        });
+    }
+
+    // --- Build Gemini Weather Impact Prompt ---
+    const weatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
+Given the following current weather data and upcoming tasks summary:
+
+Current Weather:
+- Location: ${currentWeather.location?.name || "Unknown"}, ${
+      currentWeather.location?.region || "Unknown"
+    }
+- Condition: ${currentWeather.current?.condition?.text || "N/A"}
+- Temperature: ${currentWeather.current?.temp_c || "N/A"}°C
+- Precipitation (mm): ${currentWeather.current?.precip_mm || "N/A"}
+- Humidity: ${currentWeather.current?.humidity || "N/A"}%
+- Wind Speed (kph): ${currentWeather.current?.wind_kph || "N/A"}
+
+Upcoming Tasks Summary (next few days):
+${upcomingTasksSummary}
+
+Analyze the *current* weather conditions and determine their *immediate potential impact* on the listed upcoming tasks. Focus specifically on adverse effects or necessary adjustments farmers should consider *right now* due to the *current* weather.
+
+Provide the response as a JSON object containing a single key "impacts", which is an array of strings. Each string should be a concise, actionable impact statement or warning. If the current weather poses no significant threat or requires no immediate adjustments for the listed tasks, return an empty array or a single message stating that conditions are favorable.
+
+Example Input snippet:
+Current Weather: ... Temp: 36°C, Precip: 0mm ...
+Upcoming Tasks Summary: Sowing Maize in Pune on 2025-04-08
+
+Example Output:
+{
+  "impacts": [
+    "High temperature (36°C) may stress young seedlings during sowing; ensure adequate soil moisture.",
+    "Consider sowing during cooler parts of the day (early morning/late evening) due to heat."
+  ]
+}
+
+Example Output (Favorable):
+{
+  "impacts": [
+    "Current weather conditions appear favorable for the scheduled tasks."
+  ]
+}
+
+Generate the JSON output:`;
+
+    console.log("--- Sending Weather Impact Prompt to Gemini ---");
+    // console.log(weatherImpactPrompt); // Uncomment for debugging the full prompt
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: weatherImpactPrompt }] }],
+      generationConfig, // Use the same config defined earlier
+    });
+
+    const responseText = result.response.text();
+    console.log("--- Received Weather Impact Response from Gemini ---");
+    console.log(responseText);
+
+    try {
+      // Attempt to parse the JSON string from Gemini
+      const impactsData = JSON.parse(responseText);
+      if (!impactsData.impacts || !Array.isArray(impactsData.impacts)) {
+        console.error(
+          "Gemini response for impacts is not in the expected format:",
+          impactsData
+        );
+        // Provide a default fallback if parsing is okay but structure is wrong
+        return res.json({
+          impacts: ["Could not determine specific impacts from AI analysis."],
+        });
+      }
+      res.json(impactsData); // Send the parsed JSON { "impacts": [...] }
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response as JSON:", parseError);
+      console.error("Raw Gemini response text:", responseText); // Log the raw text for debugging
+      // Provide a fallback if JSON parsing fails
+      res
+        .status(500)
+        .json({ impacts: ["Error parsing AI response for weather impacts."] });
+    }
+  } catch (error) {
+    console.error("Error in /generate-weather-impacts endpoint:", error);
+    res
+      .status(500)
+      .json({
+        error: "Failed to generate weather impacts",
+        details: error.message,
+      });
+  }
+});
+
+// Make sure your app.listen is after all route definitions
+// app.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`);
+// });
 
 // Start server
 app.listen(PORT, () => {
