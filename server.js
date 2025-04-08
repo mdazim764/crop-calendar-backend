@@ -565,15 +565,15 @@ app.post("/generate-general-weather-impacts", async (req, res) => {
 
     // --- Build Gemini General Weather Impact Prompt ---
     const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
-Given the following current weather in ${
+Here is the current weather data for ${
       currentWeather.location?.name || "an unknown location"
     }, ${currentWeather.location?.region || ""}:
 
-- Condition: ${currentWeather.current?.condition?.text || "N/A"}
-- Temperature: ${currentWeather.current?.temp_c || "N/A"}°C
-- Precipitation: ${currentWeather.current?.precip_mm || "N/A"} mm
-- Humidity: ${currentWeather.current?.humidity || "N/A"}%
-- Wind Speed: ${currentWeather.current?.wind_kph || "N/A"} kph
+Temperature: ${currentWeather.current?.temp_c || "N/A"} degrees Celsius
+Condition: ${currentWeather.current?.condition?.text || "N/A"}
+Precipitation: ${currentWeather.current?.precip_mm || "N/A"} millimeters
+Humidity: ${currentWeather.current?.humidity || "N/A"} percent
+Wind Speed: ${currentWeather.current?.wind_kph || "N/A"} kilometers per hour
 
 Based on these *current* weather conditions, provide a few general recommendations or potential impacts for farmers. Focus on any relevant advice they should consider right now, such as potential risks or general best practices. If the weather appears to be stable and doesn't pose immediate general concerns, you can state that.
 
