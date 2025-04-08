@@ -565,28 +565,23 @@ app.post("/generate-general-weather-impacts", async (req, res) => {
 
     // --- Build Gemini General Weather Impact Prompt ---
     const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
-Given the following current weather data:
+Given the following current weather in ${
+      currentWeather.location?.name || "an unknown location"
+    }, ${currentWeather.location?.region || ""}:
 
-Current Weather:
-- Location: ${currentWeather.location?.name || "Unknown"}, ${
-      currentWeather.location?.region || "Unknown"
-    }
 - Condition: ${currentWeather.current?.condition?.text || "N/A"}
 - Temperature: ${currentWeather.current?.temp_c || "N/A"}°C
-- Precipitation (mm): ${currentWeather.current?.precip_mm || "N/A"}
+- Precipitation: ${currentWeather.current?.precip_mm || "N/A"} mm
 - Humidity: ${currentWeather.current?.humidity || "N/A"}%
-- Wind Speed (kph): ${currentWeather.current?.wind_kph || "N/A"}
+- Wind Speed: ${currentWeather.current?.wind_kph || "N/A"} kph
 
-Analyze the *current* weather conditions and determine their *general potential impact* on farming activities. Focus specifically on adverse effects or general recommendations farmers should consider *right now* due to the *current* weather.
+Based on these *current* weather conditions, provide a few general recommendations or potential impacts for farmers. Focus on any relevant advice they should consider right now, such as potential risks or general best practices. If the weather appears to be stable and doesn't pose immediate general concerns, you can state that.
 
-Provide the response as a JSON object containing a single key "impacts", which is an array of strings. Each string should be a concise, actionable impact statement or warning. If the current weather poses no significant general threat or requires no immediate general adjustments, return an empty array or a single message stating that conditions are generally favorable.
+Your response should be a JSON object with an "impacts" array.
 
-Example Output:
+Example:
 {
-  "impacts": [
-    "Consider checking drainage systems due to potential heavy rainfall.",
-    "High temperatures may require increased watering for most crops."
-  ]
+  "impacts": ["Consider protecting young plants from potential cool night temperatures.", "High humidity might increase the risk of fungal growth on some crops; ensure good ventilation where possible."]
 }
 
 Generate the JSON output:`;
