@@ -564,24 +564,31 @@ app.post("/generate-general-weather-impacts", async (req, res) => {
     }
 
     // --- Build Gemini General Weather Impact Prompt ---
-    const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
-Here is the current weather data for ${
-      currentWeather.location?.name || "an unknown location"
-    }, ${currentWeather.location?.region || ""}:
+    const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions in ${
+      currentWeather.location?.region || "Maharashtra"
+    }, ${currentWeather.location?.country || "India"}.
 
-Temperature: ${currentWeather.current?.temp_c || "N/A"} degrees Celsius
-Condition: ${currentWeather.current?.condition?.text || "N/A"}
-Precipitation: ${currentWeather.current?.precip_mm || "N/A"} millimeters
-Humidity: ${currentWeather.current?.humidity || "N/A"} percent
-Wind Speed: ${currentWeather.current?.wind_kph || "N/A"} kilometers per hour
+Here is the current weather data:
+Temperature: ${currentWeather.current?.temp_c} degrees Celsius
+Condition: ${currentWeather.current?.condition?.text}
+Precipitation: ${currentWeather.current?.precip_mm} millimeters
+Humidity: ${currentWeather.current?.humidity} percent
+Wind Speed: ${currentWeather.current?.wind_kph} kilometers per hour
 
-Based on these *current* weather conditions, provide a few general recommendations or potential impacts for farmers. Focus on any relevant advice they should consider right now, such as potential risks or general best practices. If the weather appears to be stable and doesn't pose immediate general concerns, you can state that.
+Example of current weather you might receive:
+Temperature: 11.1 degrees Celsius
+Condition: Overcast
+Precipitation: 0 millimeters
+Humidity: 82 percent
+Wind Speed: 4.3 kilometers per hour
+
+Based on the *current* weather conditions, provide a few general recommendations or potential impacts for farmers in this region right now. Focus on any relevant advice they should consider, such as potential risks or general best practices. If the weather is stable and doesn't pose immediate general concerns, you can indicate that.
 
 Your response should be a JSON object with an "impacts" array.
 
-Example:
+Example of expected response:
 {
-  "impacts": ["Consider protecting young plants from potential cool night temperatures.", "High humidity might increase the risk of fungal growth on some crops; ensure good ventilation where possible."]
+  "impacts": ["Consider protecting young plants from potential cool night temperatures.", "High humidity might increase the risk of fungal growth on some crops."]
 }
 
 Generate the JSON output:`;
