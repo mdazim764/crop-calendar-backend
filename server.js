@@ -564,31 +564,43 @@ app.post("/generate-general-weather-impacts", async (req, res) => {
     }
 
     // --- Build Gemini General Weather Impact Prompt ---
-    const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions in ${
-      currentWeather.location?.region || "Maharashtra"
-    }, ${currentWeather.location?.country || "India"}.
+    const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
+Given the following current weather data and upcoming tasks summary:
 
-Here is the current weather data:
-Temperature: ${currentWeather.current?.temp_c} degrees Celsius
-Condition: ${currentWeather.current?.condition?.text}
-Precipitation: ${currentWeather.current?.precip_mm} millimeters
-Humidity: ${currentWeather.current?.humidity} percent
-Wind Speed: ${currentWeather.current?.wind_kph} kilometers per hour
+Current Weather:
+- Location: ${currentWeather.location?.name || "Unknown"}, ${
+      currentWeather.location?.region || "Unknown"
+    }
+- Condition: ${currentWeather.current?.condition?.text || "N/A"}
+- Temperature: ${currentWeather.current?.temp_c || "N/A"}°C
+- Precipitation (mm): ${currentWeather.current?.precip_mm || "N/A"}
+- Humidity: ${currentWeather.current?.humidity || "N/A"}%
+- Wind Speed (kph): ${currentWeather.current?.wind_kph || "N/A"}
 
-Example of current weather you might receive:
-Temperature: 11.1 degrees Celsius
-Condition: Overcast
-Precipitation: 0 millimeters
-Humidity: 82 percent
-Wind Speed: 4.3 kilometers per hour
+Upcoming Tasks Summary (next few days):
+${upcomingTasksSummary}
 
-Based on the *current* weather conditions, provide a few general recommendations or potential impacts for farmers in this region right now. Focus on any relevant advice they should consider, such as potential risks or general best practices. If the weather is stable and doesn't pose immediate general concerns, you can indicate that.
+Analyze the *current* weather conditions and determine their *immediate potential impact* on the listed upcoming tasks. Focus specifically on adverse effects or necessary adjustments farmers should consider *right now* due to the *current* weather.
 
-Your response should be a JSON object with an "impacts" array.
+Provide the response as a JSON object containing a single key "impacts", which is an array of strings. Each string should be a concise, actionable impact statement or warning. If the current weather poses no significant threat or requires no immediate adjustments for the listed tasks, return an empty array or a single message stating that conditions are favorable.
 
-Example of expected response:
+Example Input snippet:
+Current Weather: ... Temp: 36°C, Precip: 0mm ...
+Upcoming Tasks Summary: Sowing Maize in Pune on 2025-04-08
+
+Example Output:
 {
-  "impacts": ["Consider protecting young plants from potential cool night temperatures.", "High humidity might increase the risk of fungal growth on some crops."]
+  "impacts": [
+    "High temperature (36°C) may stress young seedlings during sowing; ensure adequate soil moisture.",
+    "Consider sowing during cooler parts of the day (early morning/late evening) due to heat."
+  ]
+}
+
+Example Output (Favorable):
+{
+  "impacts": [
+    "Current weather conditions appear favorable for the scheduled tasks."
+  ]
 }
 
 Generate the JSON output:`;
