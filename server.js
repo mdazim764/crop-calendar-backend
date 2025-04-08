@@ -457,12 +457,10 @@ app.post("/generate-weather-impacts", async (req, res) => {
     const { currentWeather, upcomingTasksSummary } = req.body;
 
     if (!currentWeather || !upcomingTasksSummary) {
-      return res
-        .status(400)
-        .json({
-          error:
-            "Missing required fields: currentWeather and upcomingTasksSummary",
-        });
+      return res.status(400).json({
+        error:
+          "Missing required fields: currentWeather and upcomingTasksSummary",
+      });
     }
 
     // --- Build Gemini Weather Impact Prompt ---
@@ -543,12 +541,96 @@ Generate the JSON output:`;
     }
   } catch (error) {
     console.error("Error in /generate-weather-impacts endpoint:", error);
-    res
-      .status(500)
-      .json({
-        error: "Failed to generate weather impacts",
-        details: error.message,
+    res.status(500).json({
+      error: "Failed to generate weather impacts",
+      details: error.message,
+    });
+  }
+});
+
+// --- New Endpoint: Generate General Weather Impacts ---
+app.post("/generate-general-weather-impacts", async (req, res) => {
+  try {
+    const { currentWeather } = req.body;
+
+    if (!currentWeather) {
+      return res.status(400).json({
+        error: "Missing required field: currentWeather",
       });
+    }
+
+    // --- Build Gemini General Weather Impact Prompt ---
+    const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
+Given the following current weather data:
+
+Current Weather:
+- Location: ${currentWeather.location?.name || "Unknown"}, ${
+      currentWeather.location?.region || "Unknown"
+    }
+- Condition: ${currentWeather.current?.condition?.text || "N/A"}
+- Temperature: ${currentWeather.current?.temp_c || "N/A"}°C
+- Precipitation (mm): ${currentWeather.current?.precip_mm || "N/A"}
+- Humidity: ${currentWeather.current?.humidity || "N/A"}%
+- Wind Speed (kph): ${currentWeather.current?.wind_kph || "N/A"}
+
+Analyze the *current* weather conditions and determine their *general potential impact* on farming activities. Focus specifically on adverse effects or general recommendations farmers should consider *right now* due to the *current* weather.
+
+Provide the response as a JSON object containing a single key "impacts", which is an array of strings. Each string should be a concise, actionable impact statement or warning. If the current weather poses no significant general threat or requires no immediate general adjustments, return an empty array or a single message stating that conditions are generally favorable.
+
+Example Output:
+{
+  "impacts": [
+    "Consider checking drainage systems due to potential heavy rainfall.",
+    "High temperatures may require increased watering for most crops."
+  ]
+}
+
+Generate the JSON output:`;
+
+    console.log("--- Sending General Weather Impact Prompt to Gemini ---");
+    // console.log(generalWeatherImpactPrompt); // Uncomment for debugging the full prompt
+
+    const result = await model.generateContent({
+      contents: [
+        { role: "user", parts: [{ text: generalWeatherImpactPrompt }] },
+      ],
+      generationConfig, // Use the same config defined earlier
+    });
+
+    const responseText = result.response.text();
+    console.log("--- Received General Weather Impact Response from Gemini ---");
+    console.log(responseText);
+
+    try {
+      const impactsData = JSON.parse(responseText);
+      if (!impactsData.impacts || !Array.isArray(impactsData.impacts)) {
+        console.error(
+          "Gemini response for general impacts is not in the expected format:",
+          impactsData
+        );
+        return res.json({
+          impacts: ["Could not determine general impacts from AI analysis."],
+        });
+      }
+      res.json(impactsData);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response as JSON:", parseError);
+      console.error("Raw Gemini response text:", responseText);
+      res
+        .status(500)
+        .json({
+          impacts: ["Error parsing AI response for general weather impacts."],
+        });
+    }
+  } catch (error) {
+    console.error(
+      "Error in /generate-general-weather-impacts endpoint:",
+      error
+    );
+    res.status(500).json({
+      error: "Failed to generate general weather impacts",
+      details: error.message,
+    });
   }
 });
 
