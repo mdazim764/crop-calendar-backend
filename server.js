@@ -564,63 +564,69 @@ app.post("/generate-general-weather-impacts", async (req, res) => {
     }
 
     // --- Build Gemini General Weather Impact Prompt ---
-    //     const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
-    // Given the following current weather data and upcoming tasks summary:
+    const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions.
+    Given the following current weather data and upcoming tasks summary:
 
-    // Current Weather:
-    // - Location: ${currentWeather.location?.name || "Unknown"}, ${
-    //       currentWeather.location?.region || "Unknown"
-    //     }
-    // - Condition: ${currentWeather.current?.condition?.text || "N/A"}
-    // - Temperature: ${currentWeather.current?.temp_c || "N/A"}°C
-    // - Precipitation (mm): ${currentWeather.current?.precip_mm || "N/A"}
-    // - Humidity: ${currentWeather.current?.humidity || "N/A"}%
-    // - Wind Speed (kph): ${currentWeather.current?.wind_kph || "N/A"}
+    Current Weather:
+    - Location: ${currentWeather.location?.name || "Unknown"}, ${
+      currentWeather.location?.region || "Unknown"
+    }
+    - Condition: ${currentWeather.current?.condition?.text || "N/A"}
+    - Temperature: ${currentWeather.current?.temp_c || "N/A"}°C
+    - Precipitation (mm): ${currentWeather.current?.precip_mm || "N/A"}
+    - Humidity: ${currentWeather.current?.humidity || "N/A"}%
+    - Wind Speed (kph): ${currentWeather.current?.wind_kph || "N/A"}
 
-    // Analyze the *current* weather conditions and determine their *immediate potential impact* on the listed upcoming tasks. Focus specifically on adverse effects or necessary adjustments farmers should consider *right now* due to the *current* weather.
+    Analyze the *current* weather conditions and determine their *immediate potential impact* on the listed upcoming tasks. Focus specifically on adverse effects or necessary adjustments farmers should consider *right now* due to the *current* weather.
 
-    // Provide the response as a JSON object containing a single key "impacts", which is an array of strings. Each string should be a concise, actionable impact statement or warning. If the current weather poses no significant threat or requires no immediate adjustments for the listed tasks, return an empty array or a single message stating that conditions are favorable.
+    Provide the response as a JSON object containing a single key "impacts", which is an array of strings. Each string should be a concise, actionable impact statement or warning. If the current weather poses no significant threat or requires no immediate adjustments for the listed tasks, return an empty array or a single message stating that conditions are favorable.
 
-    // Example Input snippet:
-    // Current Weather: ... Temp: 36°C, Precip: 0mm ...
-    // Upcoming Tasks Summary: Sowing Maize in Pune on 2025-04-08
+    Example Input snippet:
+    locatin: "Solapur, Maharashtra",
+    condition: "Sunny",
+    Current Weather: ... Temp: 36°C, Precip: 0mm ...
 
-    // Example Output:
+    Example Output:
+    { "locatin": "Solapur, Maharashtra",
+      "condition": "Sunny",
+      "weather":["Sunny", "36°C", "0mm"],
+      "impacts": [
+        "High temperature (36°C) may stress young seedlings during sowing; ensure adequate soil moisture.",
+        "Consider sowing during cooler parts of the day (early morning/late evening) due to heat."
+      ]
+    }
+
+    Example Output (Favorable):
+    {
+     "locatin": "Solapur, Maharashtra",
+      "condition": "Sunny",
+      "weather":["Sunny", "36°C", "0mm"],
+      "impacts": [
+        "Current weather conditions appear favorable for the scheduled tasks."
+      ]
+    }
+
+    Generate the JSON output:`;
+
+    //     const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions in Solapur, Maharashtra, India. The current date is April 8, 2025.
+
+    // Here is the current weather data:
+    // Temperature: ${currentWeather.current?.temp_c} degrees Celsius
+    // Condition: ${currentWeather.current?.condition?.text}
+    // Precipitation: ${currentWeather.current?.precip_mm} millimeters
+    // Humidity: ${currentWeather.current?.humidity} percent
+    // Wind Speed: ${currentWeather.current?.wind_kph} kilometers per hour
+
+    // Considering that it is early April in Solapur, Maharashtra, and based on the current weather conditions, what are some general recommendations or potential impacts for farmers in this region right now? Focus on any relevant advice they should consider, such as potential risks or general best practices for this time of year and these weather conditions.
+
+    // Your response should be a JSON object with an "impacts" array.
+
+    // Example:
     // {
-    //   "impacts": [
-    //     "High temperature (36°C) may stress young seedlings during sowing; ensure adequate soil moisture.",
-    //     "Consider sowing during cooler parts of the day (early morning/late evening) due to heat."
-    //   ]
-    // }
-
-    // Example Output (Favorable):
-    // {
-    //   "impacts": [
-    //     "Current weather conditions appear favorable for the scheduled tasks."
-    //   ]
+    //   "impacts": ["Farmers might need to start preparing for the summer heat and ensure adequate irrigation.", "Monitor for any early signs of pests that thrive in warmer, humid conditions."]
     // }
 
     // Generate the JSON output:`;
-
-    const generalWeatherImpactPrompt = `You are an expert agricultural advisor for Indian farming conditions in Solapur, Maharashtra, India. The current date is April 8, 2025.
-
-Here is the current weather data:
-Temperature: ${currentWeather.current?.temp_c} degrees Celsius
-Condition: ${currentWeather.current?.condition?.text}
-Precipitation: ${currentWeather.current?.precip_mm} millimeters
-Humidity: ${currentWeather.current?.humidity} percent
-Wind Speed: ${currentWeather.current?.wind_kph} kilometers per hour
-
-Considering that it is early April in Solapur, Maharashtra, and based on the current weather conditions, what are some general recommendations or potential impacts for farmers in this region right now? Focus on any relevant advice they should consider, such as potential risks or general best practices for this time of year and these weather conditions.
-
-Your response should be a JSON object with an "impacts" array.
-
-Example:
-{
-  "impacts": ["Farmers might need to start preparing for the summer heat and ensure adequate irrigation.", "Monitor for any early signs of pests that thrive in warmer, humid conditions."]
-}
-
-Generate the JSON output:`;
 
     console.log("--- Sending General Weather Impact Prompt to Gemini ---");
     // console.log(generalWeatherImpactPrompt); // Uncomment for debugging the full prompt
