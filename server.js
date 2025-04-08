@@ -577,8 +577,7 @@ Current Weather:
 - Humidity: ${currentWeather.current?.humidity || "N/A"}%
 - Wind Speed (kph): ${currentWeather.current?.wind_kph || "N/A"}
 
-Upcoming Tasks Summary (next few days):
-${upcomingTasksSummary}
+
 
 Analyze the *current* weather conditions and determine their *immediate potential impact* on the listed upcoming tasks. Focus specifically on adverse effects or necessary adjustments farmers should consider *right now* due to the *current* weather.
 
