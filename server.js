@@ -550,6 +550,10 @@ Generate the JSON output:`;
 
 // --- New Endpoint: Generate General Weather Impacts ---
 app.post("/generate-general-weather-impacts", async (req, res) => {
+  console.log(
+    "Received request body in /generate-general-weather-impacts:",
+    req.body
+  );
   try {
     const { currentWeather } = req.body;
 
@@ -616,11 +620,9 @@ Generate the JSON output:`;
     } catch (parseError) {
       console.error("Failed to parse Gemini response as JSON:", parseError);
       console.error("Raw Gemini response text:", responseText);
-      res
-        .status(500)
-        .json({
-          impacts: ["Error parsing AI response for general weather impacts."],
-        });
+      res.status(500).json({
+        impacts: ["Error parsing AI response for general weather impacts."],
+      });
     }
   } catch (error) {
     console.error(
