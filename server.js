@@ -548,6 +548,95 @@ Generate the JSON output:`;
   }
 });
 
+// --- New Endpoint: Generate Expert Recommendation ---
+app.post("/generate-expert-recommendation", async (req, res) => {
+  console.log(
+    "Received request body in /generate-expert-recommendation:",
+    req.body
+  );
+  try {
+    const { currentWeather } = req.body;
+
+    if (!currentWeather) {
+      return res.status(400).json({
+        error: "Missing required field: currentWeather",
+      });
+    }
+
+    // --- Build Gemini Expert Recommendation Prompt ---
+    const expertRecommendationPrompt = `You are an expert agricultural advisor for Indian farming conditions in Solapur, Maharashtra, India. The current date is April 15, 2025.
+
+Here is the current weather data:
+- Temperature: ${currentWeather.current?.temp_c} degrees Celsius
+- Condition: ${currentWeather.current?.condition?.text}
+- Precipitation: ${currentWeather.current?.precip_mm} millimeters
+- Humidity: ${currentWeather.current?.humidity} percent
+- Wind Speed: ${currentWeather.current?.wind_kph} kilometers per hour
+
+Considering the current weather conditions in early April, what is one concise and actionable recommendation you would give to farmers in this region right now? Focus on a key piece of advice they should consider for their crops or farming practices.
+
+Your response should be a JSON object with a "tips" array containing a single object with a "tip" key.
+
+Example:
+{
+  "tips": [
+    { "tip": "Given the rising temperatures, ensure adequate irrigation for all crops, especially those in early growth stages." }
+  ]
+}
+
+Generate the JSON output:`;
+
+    console.log("--- Sending Expert Recommendation Prompt to Gemini ---");
+    // console.log(expertRecommendationPrompt); // Uncomment for debugging the full prompt
+
+    const result = await model.generateContent({
+      contents: [
+        { role: "user", parts: [{ text: expertRecommendationPrompt }] },
+      ],
+      generationConfig,
+    });
+
+    const responseText = result.response.text();
+    console.log("--- Received Expert Recommendation Response from Gemini ---");
+    console.log(responseText);
+
+    try {
+      const recommendationData = JSON.parse(responseText);
+      if (
+        !recommendationData.tips ||
+        !Array.isArray(recommendationData.tips) ||
+        recommendationData.tips.length === 0 ||
+        !recommendationData.tips[0].tip
+      ) {
+        console.error(
+          "Gemini response for expert recommendation is not in the expected format:",
+          recommendationData
+        );
+        return res.json({
+          tips: [
+            {
+              tip: "Could not determine a specific recommendation from AI analysis.",
+            },
+          ],
+        });
+      }
+      res.json(recommendationData);
+    } catch (parseError) {
+      console.error("Failed to parse Gemini response as JSON:", parseError);
+      console.error("Raw Gemini response text:", responseText);
+      res.status(500).json({
+        tips: [{ tip: "Error parsing AI response for expert recommendation." }],
+      });
+    }
+  } catch (error) {
+    console.error("Error in /generate-expert-recommendation endpoint:", error);
+    res.status(500).json({
+      error: "Failed to generate expert recommendation",
+      details: error.message,
+    });
+  }
+});
+
 // --- New Endpoint: Generate General Weather Impacts ---
 app.post("/generate-general-weather-impacts", async (req, res) => {
   console.log(
