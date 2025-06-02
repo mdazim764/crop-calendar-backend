@@ -1,154 +1,4 @@
-// const { GoogleGenerativeAI } = require("@google/generative-ai");
-// const fs = require("fs");
-// const { get } = require("http");
-// require("dotenv").config(); // Load API key from .env
-
-// const apiKey = process.env.GEMINI_API_KEY;
-// const genAI = new GoogleGenerativeAI(apiKey);
-
-// // Define the AI model to use
-// const model = genAI.getGenerativeModel({
-//   model: "gemini-2.0-flash",
-// });
-
-// // Configuration for AI response
-// const generationConfig = {
-//   temperature: 1,
-//   topP: 0.95,
-//   topK: 40,
-//   maxOutputTokens: 8192,
-//   responseMimeType: "application/json",
-// };
-
-// // Function to get crop schedule and save it as a JSON file
-// async function getCropSchedule(
-//   country,
-//   state,
-//   district,
-//   soilType,
-//   climate,
-//   crop,
-//   year
-// ) {
-//   try {
-//     // Construct the input prompt
-//     const prompt = `You are a specialized AI for Indian agriculture. Given:
-//     - Country: ${country}
-//     - State: ${state}
-//     - District: ${district}
-//     - Soil Type: ${soilType}
-//     - Climate Condition: ${climate}
-//     - Crop Name: ${crop}
-//     - Target Year: ${year}
-
-//     Generate a JSON-based crop schedule including:
-//     - Land preparation
-//     - Sowing
-//     - Irrigation
-//     - Fertilization
-//     - Weeding
-//     - Pest control
-//     - Harvesting
-
-//     Ensure all tasks start no earlier than January 1 of the given year. Use ISO date format (YYYY-MM-DD). If a task is not applicable, return "NA".
-
-//     Example output:
-//     {
-//       "country": "India",
-//       "state": "Gujarat",
-//       "district": "Ahmedabad",
-//       "soil_type": "Black Soil",
-//       "climate_condition": "Semi-Arid",
-//       "crop_name": "Cotton",
-//       "year": 2027,
-//       "land_preparation_start": "2027-05-01",
-//       "land_preparation_end": "2027-06-15",
-//       "sowing_start": "2027-06-15",
-//       "sowing_end": "2027-07-31",
-//       "planting_start": "NA",
-//       "planting_end": "NA",
-//       "fertilization_1": "2027-07-15",
-//       "fertilization_2": "2027-08-30",
-//       "irrigation_start": "2027-07-01",
-//       "irrigation_end": "2027-11-30",
-//       "weeding_1": "2027-07-01",
-//       "weeding_2": "2027-08-15",
-//       "pest_control_1": "2027-08-01",
-//       "pest_control_2": "2027-09-15",
-//       "harvesting_start": "2027-11-01",
-//       "harvesting_end": "2027-12-31"
-//     }`;
-
-//     // Call Gemini AI API with structured input
-//     const response = await model.generateContent({
-//       contents: [{ role: "user", parts: [{ text: prompt }] }],
-//       generationConfig,
-//     });
-
-//     // Extract response text
-//     const resultText = response.response.text();
-
-//     // Convert text to JSON
-//     let jsonData;
-//     try {
-//       jsonData = JSON.parse(resultText);
-//     } catch (parseError) {
-//       console.error("Error parsing AI response:", parseError);
-//       return;
-//     }
-
-//     // Save JSON output to a file
-//     // const fileName = `crop_schedule_${crop}_${year}.json`;
-//     const fileName = `${crop}_response.json`;
-//     fs.writeFileSync(fileName, JSON.stringify(jsonData, null, 2));
-
-//     console.log(`Crop schedule saved to ${fileName}`);
-//   } catch (error) {
-//     console.error("Error generating crop schedule:", error);
-//   }
-// }
-
-// // Example Usage
-// getCropSchedule(
-//   "India",
-//   "Maharashtra",
-//   "Pune",
-//   "Black Soil",
-//   "Tropical",
-//   "Wheat",
-//   "2027"
-// );
-
-// // Example Usage 2
-// getCropSchedule(
-//   "India",
-//   "Gujarat",
-//   "Ahmedabad",
-//   "Black Soil",
-//   "Semi-Arid",
-//   "Cotton",
-//   "2027"
-// );
-
-// // country: India,
-// // region: Maharashtra,
-// // area: Nashik,
-// // soil type: Black Soil,
-// // climate condition: Hot and Dry,
-// // crop name: Grapes,
-// // year: 2027
-// getCropSchedule(
-//   "India",
-//   "Maharashtra",
-//   "Nashik",
-//   "Black Soil",
-//   "Hot and Dry",
-//   "Grapes",
-//   "2027"
-// );
-
-///////////////////////////////////////////////////////////////////////////////
-
+// File: server.js
 require("dotenv").config();
 const express = require("express");
 const fs = require("fs");
@@ -587,15 +437,42 @@ Example:
 Generate the JSON output:`;
 
     console.log("--- Sending Expert Recommendation Prompt to Gemini ---");
-    // console.log(expertRecommendationPrompt); // Uncomment for debugging the full prompt
 
-    const result = await model.generateContent({
-      contents: [
-        { role: "user", parts: [{ text: expertRecommendationPrompt }] },
-      ],
-      generationConfig,
-    });
+    // Implement retry logic
+    const MAX_RETRIES = 3;
+    let attempts = 0;
+    let result;
 
+    while (attempts < MAX_RETRIES) {
+      try {
+        attempts++;
+        console.log(`Attempt ${attempts} to get recommendation from Gemini`);
+        
+        result = await model.generateContent({
+          contents: [
+            { role: "user", parts: [{ text: expertRecommendationPrompt }] },
+          ],
+          generationConfig,
+        });
+        
+        // If we got here, the request succeeded
+        break;
+      } catch (aiError) {
+        console.error(`Attempt ${attempts} failed:`, aiError.message);
+        
+        // If we've reached max retries, throw the error to be caught by outer try/catch
+        if (attempts >= MAX_RETRIES) {
+          throw aiError;
+        }
+        
+        // Wait before retry - exponential backoff (1s, 2s, 4s, etc.)
+        const delay = Math.pow(2, attempts - 1) * 1000;
+        console.log(`Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+
+    // Process successful response
     const responseText = result.response.text();
     console.log("--- Received Expert Recommendation Response from Gemini ---");
     console.log(responseText);
@@ -630,9 +507,14 @@ Generate the JSON output:`;
     }
   } catch (error) {
     console.error("Error in /generate-expert-recommendation endpoint:", error);
-    res.status(500).json({
-      error: "Failed to generate expert recommendation",
-      details: error.message,
+    
+    // Provide a meaningful fallback response rather than returning an error
+    return res.json({
+      tips: [
+        { 
+          tip: "Based on the current weather conditions, monitor soil moisture levels and adjust irrigation as needed for your crops."
+        }
+      ]
     });
   }
 });
