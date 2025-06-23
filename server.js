@@ -145,7 +145,70 @@ Finally, include an overall key "overall_note" that briefly explains whether the
 
 All dates must be in ISO format (YYYY-MM-DD). For any task that is not applicable, return "NA."
 
-Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year. Provide JSON fields for tasks (land_preparation, sowing, irrigation, fertilization, etc.). For any task that is not relevant, return "NA."
+Pretend you’re a highly trained model for agricultural planning in India. A user wants a schedule for the upcoming year, with tasks only after January 1 of that year and the after the current date. Provide JSON fields for tasks (land_preparation, sowing, irrigation, fertilization, etc.). For any task that is not relevant, return "NA."
+
+Example input:
+{
+  "country": "India",
+  "state": "Gujarat",
+  "district": "Ahmedabad",
+  "soil_type": "Black Soil",
+  "climate_condition": "Semi-Arid",
+  "crop_name": "Cotton",
+  "year": 2027
+}
+  for each task, provide:
+- "land_preparation_start": "2027-05-01" 
+- "description_land_preparation_start": "Begin clearing and preparing the land for plowing."
+- "tips_land_preparation_start": "Ensure the soil is adequately moist before starting."
+- "land_preparation_end": "2027-06-15"
+- "description_land_preparation_end": "Finish leveling and final land preparation."
+- "tips_land_preparation_end": "No adjustment needed."
+- "sowing_start": "2027-06-01"
+- "description_sowing_start": "Start sowing the cotton seeds at proper depth."
+- "tips_sowing_start": "Check soil moisture before planting."
+- "sowing_end": "2027-07-31"
+- "description_sowing_end": "Complete the sowing process ensuring even seed distribution."
+- "tips_sowing_end": "Monitor for pest emergence after sowing."
+- "irrigation_start": "2027-07-01"
+- "description_irrigation_start": "Begin scheduled irrigation to support seed germination."
+- "tips_irrigation_start": "Increase irrigation if temperatures are high."
+- "irrigation_end": "2027-11-30"
+- "description_irrigation_end": "End regular irrigation as the crop nears maturity."
+- "tips_irrigation_end": "Reduce irrigation frequency as harvest nears."
+- "fertilization_1": "2027-07-15"
+- "description_fertilization_1": "Apply the first round of fertilizers to boost early growth."
+- "tips_fertilization_1": "Apply fertilizer after the first weeding."
+- "fertilization_2": "2027-08-30"
+- "description_fertilization_2": "Apply a second dose to sustain growth."
+- "tips_fertilization_2": "Use organic fertilizer for sustained growth."
+- "weeding_1": "2027-07-01"
+- "description_weeding_1": "Perform initial weeding to remove competing plants."
+- "tips_weeding_1": "Perform weeding early to reduce competition with crops."
+- "weeding_2": "2027-08-15"
+- "description_weeding_2": "Carry out a second round of weeding for optimal growth."
+- "tips_weeding_2": "Monitor for invasive species and act accordingly."
+- "pest_control_1": "2027-08-01"
+- "description_pest_control_1": "Begin pest control measures to protect young plants."
+- "tips_pest_control_1": "Implement integrated pest management strategies."
+- "pest_control_2": "2027-09-15"
+- "description_pest_control_2": "Follow up with a second pest control application if
+  needed."
+- "tips_pest_control_2": "Inspect regularly and adjust treatments as necessary."
+- "harvesting_start": "2027-11-01"
+- "description_harvesting_start": "Initiate harvesting once crops are mature."
+- "tips_harvesting_start": "Harvest early in the morning for best quality."
+- "harvesting_end": "2027-12-31"
+- "description_harvesting_end": "Complete the harvesting process and secure the produce."
+- "tips_harvesting_end": "Store harvested crops in a cool, dry place."
+- "overall_note": "Based on the provided conditions, the crop appears suitable with minor adjustments."
+if the crop any needs diffrent processes, eg rice needs the planting process, then return the planting_start and planting_end keys with their descriptions and tips.
+- "Planting_start": "2027-06-01"
+- "description_planting_start": "Start planting cotton seeds in the prepared soil."
+- "tips_planting_start": "Check soil moisture before planting."
+- "planting_end": "2027-06-30"
+- "description_planting_end": "Complete planting ensuring proper spacing."
+- "tips_planting_end": "Monitor for any signs of pest activity after planting."
 
 Example output:
 {
@@ -162,6 +225,12 @@ Example output:
   "land_preparation_end": "2027-06-15",
   "description_land_preparation_end": "Finish leveling and final land preparation.",
   "tips_land_preparation_end": "No adjustment needed.",
+  "Planting_start": "2027-06-01",
+  "description_planting_start": "Start planting cotton seeds in the prepared soil.",
+  "tips_planting_start": "Check soil moisture before planting.",
+  "planting_end": "2027-06-30",
+  "description_planting_end": "Complete planting ensuring proper spacing.",
+  "tips_planting_end": "Monitor for any signs of pest activity after planting.",
   "sowing_start": "2027-06-15",
   "description_sowing_start": "Start sowing the cotton seeds at proper depth.",
   "tips_sowing_start": "Delay sowing if heavy rains are forecast.",
@@ -447,28 +516,28 @@ Generate the JSON output:`;
       try {
         attempts++;
         console.log(`Attempt ${attempts} to get recommendation from Gemini`);
-        
+
         result = await model.generateContent({
           contents: [
             { role: "user", parts: [{ text: expertRecommendationPrompt }] },
           ],
           generationConfig,
         });
-        
+
         // If we got here, the request succeeded
         break;
       } catch (aiError) {
         console.error(`Attempt ${attempts} failed:`, aiError.message);
-        
+
         // If we've reached max retries, throw the error to be caught by outer try/catch
         if (attempts >= MAX_RETRIES) {
           throw aiError;
         }
-        
+
         // Wait before retry - exponential backoff (1s, 2s, 4s, etc.)
         const delay = Math.pow(2, attempts - 1) * 1000;
         console.log(`Waiting ${delay}ms before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
@@ -507,14 +576,14 @@ Generate the JSON output:`;
     }
   } catch (error) {
     console.error("Error in /generate-expert-recommendation endpoint:", error);
-    
+
     // Provide a meaningful fallback response rather than returning an error
     return res.json({
       tips: [
-        { 
-          tip: "Based on the current weather conditions, monitor soil moisture levels and adjust irrigation as needed for your crops."
-        }
-      ]
+        {
+          tip: "Based on the current weather conditions, monitor soil moisture levels and adjust irrigation as needed for your crops.",
+        },
+      ],
     });
   }
 });
